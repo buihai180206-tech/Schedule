@@ -1,6 +1,6 @@
 {
-  "name": "Dayflow",
-  "short_name": "Dayflow",
+  "name": "Nhịp Tuần",
+  "short_name": "Nhịp Tuần",
   "description": "Lên lịch sáng - trưa - chiều - tối cho cả tuần, mỗi ngày chỉ hiện đúng việc hôm nay",
   "start_url": "./index.html",
   "display": "standalone",
