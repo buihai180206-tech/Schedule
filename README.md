@@ -11,14 +11,15 @@
 
 1. Mở app → bấm icon bút **✎** → vào "Chỉnh lịch tuần".
 2. Mỗi buổi (Sáng/Trưa/Chiều/Tối) của từng ngày, bấm **"+ Thêm hoạt động"** để thêm bao nhiêu hoạt động tuỳ ý, mỗi hoạt động có giờ riêng (không bắt buộc) + mô tả. Bấm ✕ để xoá.
-3. Bấm **←** để quay lại — màn hình chính tự nhận diện hôm nay, các hoạt động trong buổi được sắp theo giờ tăng dần.
-4. Bấm **"Bật thông báo nhắc giờ hoạt động"** để cho phép thông báo ngay trong trình duyệt — dùng được khi app đang mở, tiện cho lúc đang dùng điện thoại.
+3. **Giờ phải nằm trong đúng khung của buổi đó** — Sáng: 00:00–10:59, Trưa: 11:00–12:59, Chiều: 13:00–18:59, Tối: 19:00–23:59. Ví dụ hoạt động lúc 00:30 (12 giờ rưỡi đêm) phải điền vào buổi **Sáng**, không điền được vào buổi Tối — app sẽ báo lỗi và không lưu nếu bạn chọn giờ lệch buổi.
+4. Bấm **←** để quay lại — màn hình chính tự nhận diện hôm nay, các hoạt động trong buổi được sắp theo giờ tăng dần.
+5. Bấm **"Bật thông báo nhắc giờ hoạt động"** để cho phép thông báo ngay trong trình duyệt — dùng được khi app đang mở, tiện cho lúc đang dùng điện thoại.
 
 ## Tích hoàn thành & thống kê tuần
 
 - Mỗi hoạt động ở màn hình chính có 1 ô tích bên trái. Làm xong thì bấm tích — chữ sẽ gạch ngang.
 - **Khi buổi đó (sáng/trưa/chiều/tối) đã trôi qua trong ngày mà bạn chưa tích**, ô tích tự **khoá lại** (hiện dấu ✕ đỏ, không bấm được nữa) và hoạt động đó bị tính là **chưa hoàn thành** — không tích bù được sau đó; hoạt động đã tích rồi cũng không gỡ tích lại được sau khi buổi khoá, để số liệu không bị sửa ngược.
-- Mốc khoá theo từng buổi: Sáng khoá lúc 11:00, Trưa lúc 13:00, Chiều lúc 18:00, Tối khoá khi sang ngày mới (00:00). Ngày đã qua thì toàn bộ ô tích của ngày đó luôn ở trạng thái khoá.
+- Mốc khoá theo từng buổi: Sáng khoá lúc 11:00, Trưa lúc 13:00, Chiều lúc 19:00, Tối khoá khi sang ngày mới (00:00). Ngày đã qua thì toàn bộ ô tích của ngày đó luôn ở trạng thái khoá.
 - Dưới danh sách hoạt động ở màn hình chính có 1 thẻ nhỏ hiện **% hoàn thành của 7 ngày gần nhất** — bấm vào để xem chi tiết theo từng ngày. Chỉ hoạt động đã "tới hạn" (buổi đã khoá) mới được tính vào phần trăm; hoạt động của buổi chưa tới thì chưa tính, tránh làm giảm ảo tỉ lệ trước khi bạn có cơ hội thực hiện.
 - Nếu bạn xoá hoặc thêm hoạt động, số liệu các ngày trước tính lại theo lịch mẫu hiện tại (không lưu ảnh chụp lịch cũ) — nên số liệu tuần có thể đổi nhẹ nếu bạn sửa lịch giữa tuần.
 

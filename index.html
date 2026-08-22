@@ -342,7 +342,21 @@ function schedulePush(){
 const COMPLETIONS_KEY = "dayflow-completions-v1";
 // Giờ kết thúc mỗi buổi (dùng để khoá ô tích khi buổi đã trôi qua trong hôm nay).
 // "toi" coi như hết hạn lúc sang ngày mới (24h) vì màn hình luôn hiển thị đúng ngày hiện tại.
-const SLOT_END_HOUR = { sang:11, trua:13, chieu:18, toi:24 };
+const SLOT_END_HOUR = { sang:11, trua:13, chieu:19, toi:24 };
+
+// Khung giờ hợp lệ được phép chọn cho từng buổi — không cho đặt giờ lệch buổi
+// (vd 00:30 phải điền vào buổi Sáng, không được điền vào buổi Tối).
+const SLOT_RANGE = {
+  sang:  { min:'00:00', max:'10:59' },
+  trua:  { min:'11:00', max:'12:59' },
+  chieu: { min:'13:00', max:'18:59' },
+  toi:   { min:'19:00', max:'23:59' },
+};
+function isTimeInSlotRange(time, slotKey){
+  if(!time) return true; // không đặt giờ thì không cần kiểm tra
+  const r = SLOT_RANGE[slotKey];
+  return time >= r.min && time <= r.max;
+}
 
 function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
 
@@ -403,9 +417,9 @@ function computeWeeklyStats(){
 
 function currentSlotKey(){
   const h = new Date().getHours();
-  if(h>=4 && h<11) return 'sang';
-  if(h>=11 && h<13) return 'trua';
-  if(h>=13 && h<18) return 'chieu';
+  if(h<11) return 'sang';
+  if(h<13) return 'trua';
+  if(h<19) return 'chieu';
   return 'toi';
 }
 
@@ -522,14 +536,14 @@ function renderEdit(){
       const activities = schedule[d.jsDay][s.key] || [];
       const rows = activities.map(a=>`
         <div class="activity-edit-row">
-          <input type="time" value="${escapeHtml(a.time||'')}" data-act-time="${d.jsDay}|${s.key}|${a.id}">
+          <input type="time" min="${SLOT_RANGE[s.key].min}" max="${SLOT_RANGE[s.key].max}" value="${escapeHtml(a.time||'')}" data-act-time="${d.jsDay}|${s.key}|${a.id}">
           <input type="text" value="${escapeHtml(a.text||'')}" data-act-text="${d.jsDay}|${s.key}|${a.id}" placeholder="hoạt động">
           <button class="del-btn" data-act-del="${d.jsDay}|${s.key}|${a.id}">✕</button>
         </div>
       `).join('');
       return `
         <div class="slot-edit-block">
-          <div class="slot-edit-head"><span class="mini-dot" style="background:var(${s.varName})"></span><span>${s.label}</span></div>
+          <div class="slot-edit-head"><span class="mini-dot" style="background:var(${s.varName})"></span><span>${s.label}</span><span style="opacity:0.6;">(${SLOT_RANGE[s.key].min}–${SLOT_RANGE[s.key].max})</span></div>
           ${rows}
           <button class="add-activity-btn" data-act-add="${d.jsDay}|${s.key}">+ Thêm hoạt động</button>
         </div>
@@ -548,7 +562,7 @@ function renderEdit(){
       <div class="wordmark">Chỉnh lịch tuần</div>
       <button class="icon-btn" id="back-btn" aria-label="Quay lại">←</button>
     </div>
-    <div class="hint" style="text-align:left; margin-top:16px;">Mỗi buổi có thể thêm nhiều hoạt động, mỗi hoạt động gắn 1 giờ cụ thể (không bắt buộc). Đến đúng giờ đó, app sẽ gửi thông báo nhắc nếu bạn đã bật thông báo và app đang mở.</div>
+    <div class="hint" style="text-align:left; margin-top:16px;">Mỗi buổi có thể thêm nhiều hoạt động, mỗi hoạt động gắn 1 giờ cụ thể (không bắt buộc) — giờ phải nằm trong đúng khung của buổi đó (Sáng 00:00–10:59, Trưa 11:00–12:59, Chiều 13:00–18:59, Tối 19:00–23:59), ví dụ 00:30 phải điền vào buổi Sáng chứ không phải Tối. Đến đúng giờ đó, app sẽ gửi thông báo nhắc nếu bạn đã bật thông báo và app đang mở.</div>
     <div class="section-label">Cả tuần</div>
     ${blocks}
 
@@ -594,7 +608,16 @@ function bindEvents(){
     el.onchange = ()=>{
       const [day,slot,id] = el.dataset.actTime.split('|');
       const act = (schedule[day][slot]||[]).find(a=>a.id===id);
-      if(act){ act.time = el.value; act.lastNotifiedDate = null; persist(); schedulePush(); }
+      if(!act) return;
+      const val = el.value;
+      if(val && !isTimeInSlotRange(val, slot)){
+        const r = SLOT_RANGE[slot];
+        const slotLabel = SLOTS.find(s=>s.key===slot).label;
+        alert(`Buổi ${slotLabel} chỉ nhận giờ từ ${r.min} đến ${r.max}. Giờ bạn chọn hợp với 1 buổi khác — hãy xoá hoạt động này rồi thêm lại ở đúng buổi đó.`);
+        el.value = act.time || '';
+        return;
+      }
+      act.time = val; act.lastNotifiedDate = null; persist(); schedulePush();
     };
   });
   document.querySelectorAll('[data-act-text]').forEach(el=>{
