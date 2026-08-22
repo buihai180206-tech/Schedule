@@ -48,11 +48,39 @@
   .slot-dot{ width:8px; height:8px; border-radius:50%; background:var(--sc); }
   .slot-name{ font-family:'Fraunces',serif; font-weight:500; font-size:15px; color:var(--text-dim); }
   .activity-list{ margin-top:8px; }
-  .activity-row{ display:flex; gap:12px; align-items:baseline; padding:7px 0; border-top:1px solid var(--line); }
+  .activity-row{ display:flex; gap:12px; align-items:center; padding:7px 0; border-top:1px solid var(--line); cursor:pointer; }
   .activity-row:first-child{ border-top:none; padding-top:2px; }
   .activity-time{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-dim); width:40px; flex-shrink:0; }
-  .activity-text{ font-size:15px; line-height:1.5; }
+  .activity-text{ font-size:15px; line-height:1.5; flex:1; }
+  .activity-text.done{ text-decoration: line-through; color:var(--text-dim); }
+  .activity-text.missed{ color:var(--text-dim); }
   .slot-task.empty{ margin-top:8px; color:var(--text-dim); font-style:italic; font-size:15px; }
+
+  .activity-check{
+    appearance:none; -webkit-appearance:none; width:19px; height:19px; border-radius:6px; flex-shrink:0;
+    border:1.5px solid var(--line); background:var(--surface-2); cursor:pointer; position:relative;
+  }
+  .activity-check:checked{ background:var(--night); border-color:var(--night); }
+  .activity-check:checked::after{ content:'✓'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:12px; color:#fff; }
+  .activity-check:disabled{ cursor:default; }
+  .activity-check:disabled:not(:checked){ border-color: var(--dusk); background: rgba(239,111,108,0.12); }
+  .activity-check:disabled:not(:checked)::after{ content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--dusk); }
+  .activity-check:disabled:checked{ opacity:0.85; }
+
+  .stats-teaser{
+    margin-top:14px; display:flex; align-items:center; justify-content:space-between;
+    background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 18px; cursor:pointer;
+  }
+  .stats-teaser-pct{ font-family:'Fraunces',serif; font-weight:600; color:var(--night); }
+  .stats-teaser-arrow{ color:var(--text-dim); }
+
+  .stats-hero{ text-align:center; margin-top:26px; }
+  .stats-pct{ font-family:'Fraunces',serif; font-weight:600; font-size:52px; color:var(--night); }
+  .stats-sub{ margin-top:6px; font-size:13px; color:var(--text-dim); }
+  .stats-day-list{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:4px 18px; margin-bottom:12px; }
+  .stats-day-row{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-top:1px solid var(--line); font-size:14px; }
+  .stats-day-row:first-child{ border-top:none; }
+  .stats-day-frac{ font-family:'IBM Plex Mono'; font-size:13px; color:var(--text-dim); }
 
   .section-label{ margin: 26px 0 10px; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
 
@@ -310,6 +338,69 @@ function schedulePush(){
   }, 900);
 }
 
+// ---- Hoàn thành hoạt động & thống kê tuần ----
+const COMPLETIONS_KEY = "dayflow-completions-v1";
+// Giờ kết thúc mỗi buổi (dùng để khoá ô tích khi buổi đã trôi qua trong hôm nay).
+// "toi" coi như hết hạn lúc sang ngày mới (24h) vì màn hình luôn hiển thị đúng ngày hiện tại.
+const SLOT_END_HOUR = { sang:11, trua:13, chieu:18, toi:24 };
+
+function dateKey(d){ return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`; }
+
+function loadCompletions(){
+  try{
+    const raw = localStorage.getItem(COMPLETIONS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return {};
+}
+let completions = loadCompletions();
+function saveCompletions(){ localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(completions)); }
+
+function isCompleted(dKey, actId){ return !!(completions[dKey] && completions[dKey][actId]); }
+function setCompleted(dKey, actId, val){
+  if(!completions[dKey]) completions[dKey] = {};
+  if(val) completions[dKey][actId] = true;
+  else delete completions[dKey][actId];
+  saveCompletions();
+}
+
+// Một buổi của một ngày đã "khoá" (không tích được nữa) khi: ngày đó là quá khứ,
+// hoặc ngày đó là hôm nay nhưng giờ hiện tại đã qua mốc kết thúc buổi.
+function isSlotLocked(dKey, slotKey, now){
+  const tKey = dateKey(now);
+  if(dKey < tKey) return true;
+  if(dKey > tKey) return false;
+  return now.getHours() >= SLOT_END_HOUR[slotKey];
+}
+
+// Thống kê 7 ngày gần nhất (tính cả hôm nay). Chỉ tính những hoạt động mà
+// buổi của nó đã khoá (đã tới hạn) — buổi chưa tới thì chưa có kết quả nên
+// không đưa vào mẫu số.
+function computeWeeklyStats(){
+  const now = new Date();
+  let total = 0, done = 0;
+  const days = [];
+  for(let i=6; i>=0; i--){
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const dKey = dateKey(d);
+    const jsDay = d.getDay();
+    const daySchedule = schedule[jsDay] || emptyDay();
+    let dayTotal = 0, dayDone = 0;
+    SLOTS.forEach(s=>{
+      (daySchedule[s.key]||[]).forEach(a=>{
+        if(!(a.text||'').trim()) return;
+        if(!isSlotLocked(dKey, s.key, now)) return;
+        dayTotal++;
+        if(isCompleted(dKey, a.id)) dayDone++;
+      });
+    });
+    total += dayTotal; done += dayDone;
+    days.push({ dateKey:dKey, label: DAYS.find(x=>x.jsDay===jsDay).label, total:dayTotal, done:dayDone });
+  }
+  const pct = total>0 ? Math.round(done/total*100) : 0;
+  return { total, done, pct, days };
+}
+
 function currentSlotKey(){
   const h = new Date().getHours();
   if(h>=4 && h<11) return 'sang';
@@ -329,7 +420,7 @@ function notifBtnHtml(){
 
 function render(){
   const app = document.getElementById('app');
-  app.innerHTML = state.view === 'today' ? renderToday() : renderEdit();
+  app.innerHTML = state.view === 'today' ? renderToday() : (state.view === 'stats' ? renderStats() : renderEdit());
   bindEvents();
 }
 
@@ -339,6 +430,7 @@ function renderToday(){
   const dayInfo = DAYS.find(d=>d.jsDay===jsDay);
   const dateStr = `${pad2(now.getDate())}/${pad2(now.getMonth()+1)}/${now.getFullYear()}`;
   const todaySchedule = schedule[jsDay] || emptyDay();
+  const todayKey = dateKey(now);
   const activeKey = currentSlotKey();
   const activeIdx = SLOTS.findIndex(s=>s.key===activeKey);
 
@@ -355,13 +447,18 @@ function renderToday(){
   const cards = SLOTS.map(s=>{
     const activities = (todaySchedule[s.key]||[]).slice().sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
     const withText = activities.filter(a=>(a.text||'').trim());
+    const locked = isSlotLocked(todayKey, s.key, now);
     const list = withText.length
-      ? `<div class="activity-list">${withText.map(a=>`
-          <div class="activity-row">
+      ? `<div class="activity-list">${withText.map(a=>{
+          const done = isCompleted(todayKey, a.id);
+          const missed = locked && !done;
+          return `
+          <label class="activity-row">
+            <input type="checkbox" class="activity-check" data-check="${todayKey}|${a.id}" ${done?'checked':''} ${locked?'disabled':''}>
             <span class="activity-time">${a.time?escapeHtml(a.time):''}</span>
-            <span class="activity-text">${escapeHtml(a.text)}</span>
-          </div>
-        `).join('')}</div>`
+            <span class="activity-text ${done?'done':''} ${missed?'missed':''}">${escapeHtml(a.text)}</span>
+          </label>
+        `;}).join('')}</div>`
       : `<div class="slot-task empty">Không có công việc nào</div>`;
     return `
       <div class="slot-card" style="--sc:var(${s.varName})">
@@ -370,6 +467,8 @@ function renderToday(){
       </div>
     `;
   }).join('');
+
+  const stats = computeWeeklyStats();
 
   return `
     <div class="topbar">
@@ -382,7 +481,35 @@ function renderToday(){
     </div>
     <div class="arc-wrap">${arcHtml}</div>
     ${cards}
+    <div class="stats-teaser" id="stats-teaser">
+      <span>Tuần này: <span class="stats-teaser-pct">${stats.pct}%</span> hoàn thành (${stats.done}/${stats.total})</span>
+      <span class="stats-teaser-arrow">→</span>
+    </div>
     ${notifBtnHtml()}
+  `;
+}
+
+function renderStats(){
+  const { total, done, pct, days } = computeWeeklyStats();
+  const rows = days.map(d=>`
+    <div class="stats-day-row">
+      <span>${d.label}</span>
+      <span class="stats-day-frac">${d.total ? `${d.done}/${d.total}` : '—'}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="topbar">
+      <div class="wordmark">Thống kê tuần</div>
+      <button class="icon-btn" id="back-stats-btn" aria-label="Quay lại">←</button>
+    </div>
+    <div class="stats-hero">
+      <div class="stats-pct">${pct}%</div>
+      <div class="stats-sub">${done}/${total} hoạt động đã hoàn thành (7 ngày qua)</div>
+    </div>
+    <div class="section-label">Theo ngày</div>
+    <div class="stats-day-list">${rows}</div>
+    <div class="hint">Hoạt động nào đã qua buổi (sáng/trưa/chiều/tối) mà chưa tích sẽ tự tính là chưa hoàn thành và khoá ô tích lại. Chỉ hoạt động đã tới hạn mới được tính vào thống kê.</div>
   `;
 }
 
@@ -446,6 +573,19 @@ function bindEvents(){
   if(editBtn) editBtn.onclick = ()=>{ state.view='edit'; render(); };
   const backBtn = document.getElementById('back-btn');
   if(backBtn) backBtn.onclick = ()=>{ state.view='today'; render(); };
+
+  const statsTeaser = document.getElementById('stats-teaser');
+  if(statsTeaser) statsTeaser.onclick = ()=>{ state.view='stats'; render(); };
+  const backStatsBtn = document.getElementById('back-stats-btn');
+  if(backStatsBtn) backStatsBtn.onclick = ()=>{ state.view='today'; render(); };
+
+  document.querySelectorAll('[data-check]').forEach(el=>{
+    el.onchange = ()=>{
+      const [dKey, actId] = el.dataset.check.split('|');
+      setCompleted(dKey, actId, el.checked);
+      render();
+    };
+  });
 
   const notifBtn = document.getElementById('notif-btn');
   if(notifBtn) notifBtn.onclick = ()=>{ Notification.requestPermission().then(()=> render()); };

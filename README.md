@@ -14,6 +14,14 @@
 3. Bấm **←** để quay lại — màn hình chính tự nhận diện hôm nay, các hoạt động trong buổi được sắp theo giờ tăng dần.
 4. Bấm **"Bật thông báo nhắc giờ hoạt động"** để cho phép thông báo ngay trong trình duyệt — dùng được khi app đang mở, tiện cho lúc đang dùng điện thoại.
 
+## Tích hoàn thành & thống kê tuần
+
+- Mỗi hoạt động ở màn hình chính có 1 ô tích bên trái. Làm xong thì bấm tích — chữ sẽ gạch ngang.
+- **Khi buổi đó (sáng/trưa/chiều/tối) đã trôi qua trong ngày mà bạn chưa tích**, ô tích tự **khoá lại** (hiện dấu ✕ đỏ, không bấm được nữa) và hoạt động đó bị tính là **chưa hoàn thành** — không tích bù được sau đó; hoạt động đã tích rồi cũng không gỡ tích lại được sau khi buổi khoá, để số liệu không bị sửa ngược.
+- Mốc khoá theo từng buổi: Sáng khoá lúc 11:00, Trưa lúc 13:00, Chiều lúc 18:00, Tối khoá khi sang ngày mới (00:00). Ngày đã qua thì toàn bộ ô tích của ngày đó luôn ở trạng thái khoá.
+- Dưới danh sách hoạt động ở màn hình chính có 1 thẻ nhỏ hiện **% hoàn thành của 7 ngày gần nhất** — bấm vào để xem chi tiết theo từng ngày. Chỉ hoạt động đã "tới hạn" (buổi đã khoá) mới được tính vào phần trăm; hoạt động của buổi chưa tới thì chưa tính, tránh làm giảm ảo tỉ lệ trước khi bạn có cơ hội thực hiện.
+- Nếu bạn xoá hoặc thêm hoạt động, số liệu các ngày trước tính lại theo lịch mẫu hiện tại (không lưu ảnh chụp lịch cũ) — nên số liệu tuần có thể đổi nhẹ nếu bạn sửa lịch giữa tuần.
+
 ## Vì sao thông báo trong app không đáng tin cậy khi app đóng — và cách khắc phục bằng Shortcuts
 
 Thông báo tích hợp sẵn (nút "Bật thông báo") chỉ hoạt động khi **app đang mở trên màn hình** — đây là giới hạn của mọi web app trên iOS, không phải lỗi riêng của Dayflow. Khi bạn khoá máy hoặc chuyển app khác, iOS tạm dừng code nên có thể lỡ thông báo.
