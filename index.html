@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#0B0E1A">
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icon-192.png">
-<title>Nhịp Tuần</title>
+<title>Dayflow</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
@@ -34,7 +34,6 @@
   .day-label{ font-family:'Fraunces',serif; font-weight:600; font-size:28px; }
   .date-sub{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-dim); margin-top:4px; }
 
-  /* signature: day arc */
   .arc-wrap{ margin:28px 0 8px; }
   .arc{ display:flex; align-items:center; }
   .arc-node{ flex:0 0 auto; width:14px; height:14px; border-radius:50%; background:var(--surface-2); border:2px solid var(--line); position:relative; }
@@ -42,38 +41,58 @@
   .arc-line{ flex:1; height:2px; background:var(--line); margin:0 2px; }
   .arc-line.filled{ background:linear-gradient(90deg, var(--lc), var(--rc)); }
   .arc-labels{ display:flex; justify-content:space-between; margin-top:8px; }
-  .arc-labels span{ font-family:'IBM Plex Mono'; font-size:10px; color:var(--text-dim); width:14px; text-align:center; transform:translateX(0); }
+  .arc-labels span{ font-family:'IBM Plex Mono'; font-size:10px; color:var(--text-dim); width:14px; text-align:center; }
 
   .slot-card{ margin-top:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; border-left:3px solid var(--sc); }
   .slot-head{ display:flex; align-items:center; gap:8px; }
   .slot-dot{ width:8px; height:8px; border-radius:50%; background:var(--sc); }
   .slot-name{ font-family:'Fraunces',serif; font-weight:500; font-size:15px; color:var(--text-dim); }
-  .slot-task{ margin-top:8px; font-size:16px; line-height:1.5; }
-  .slot-task.empty{ color:var(--text-dim); font-style:italic; }
+  .activity-list{ margin-top:8px; }
+  .activity-row{ display:flex; gap:12px; align-items:baseline; padding:7px 0; border-top:1px solid var(--line); }
+  .activity-row:first-child{ border-top:none; padding-top:2px; }
+  .activity-time{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-dim); width:40px; flex-shrink:0; }
+  .activity-text{ font-size:15px; line-height:1.5; }
+  .slot-task.empty{ margin-top:8px; color:var(--text-dim); font-style:italic; font-size:15px; }
 
   .section-label{ margin: 26px 0 10px; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
 
   .day-block{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:12px; }
-  .day-block-title{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin-bottom:10px; }
+  .day-block-title{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin-bottom:6px; }
   .day-block.today{ border-color: var(--night); }
-  .slot-input-row{ display:flex; align-items:center; gap:10px; padding:6px 0; }
-  .slot-input-row .mini-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .slot-input-row label{ width:44px; flex-shrink:0; font-family:'IBM Plex Mono'; font-size:11px; color:var(--text-dim); }
-  .slot-input-row input{
+
+  .slot-edit-block{ margin-top:14px; padding-top:12px; border-top:1px solid var(--line); }
+  .slot-edit-block:first-of-type{ margin-top:8px; }
+  .slot-edit-head{ display:flex; align-items:center; gap:8px; font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-dim); margin-bottom:8px; }
+  .mini-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+
+  .activity-edit-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .activity-edit-row input[type="time"]{
+    width:92px; flex-shrink:0; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    color:var(--text); padding:8px 8px; font-size:12px; font-family:'IBM Plex Mono'; outline:none;
+    color-scheme: dark;
+  }
+  .activity-edit-row input[type="text"]{
     flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
     color:var(--text); padding:9px 11px; font-size:13px; font-family:'Inter'; outline:none;
   }
-  .slot-input-row input:focus{ border-color: var(--night); }
+  .activity-edit-row input:focus{ border-color: var(--night); }
+  .del-btn{ background:none; border:none; color:var(--dusk); font-size:14px; cursor:pointer; padding:4px; flex-shrink:0; }
+  .add-activity-btn{
+    width:100%; padding:9px; border-radius:10px; border:1px dashed var(--line); background:transparent;
+    color:var(--text-dim); font-size:12px; cursor:pointer; margin-top:2px;
+  }
+  .add-activity-btn:active{ transform:scale(0.98); }
 
   .hint{ margin-top:14px; font-size:12px; color:var(--text-dim); text-align:center; line-height:1.5; }
   .reset-btn{ margin-top:22px; width:100%; padding:13px; border-radius:14px; border:1px solid var(--line); background:var(--surface); color:var(--text-dim); font-size:13px; cursor:pointer; }
+  .notif-btn{ margin-top:16px; width:100%; padding:13px; border-radius:14px; border:1px solid var(--night); background:transparent; color:var(--text); font-size:13px; cursor:pointer; }
 </style>
 </head>
 <body>
 <div class="app" id="app"></div>
 
 <script>
-const STORE_KEY = "nhip-tuan-schedule-v1";
+const STORE_KEY = "dayflow-schedule-v2";
 
 const DAYS = [
   {jsDay:1, label:'Thứ Hai'},
@@ -92,15 +111,49 @@ const SLOTS = [
   {key:'toi', label:'Tối', varName:'--night'},
 ];
 
+let idCounter = 1;
+function genId(){ return 'a' + (idCounter++) + '_' + Date.now().toString(36); }
+
+function emptyDay(){ return {sang:[], trua:[], chieu:[], toi:[]}; }
+
 function loadSchedule(){
+  let data;
   try{
     const raw = localStorage.getItem(STORE_KEY);
-    if(raw) return JSON.parse(raw);
-  }catch(e){}
-  const s = {};
-  DAYS.forEach(d=> s[d.jsDay] = {sang:'', trua:'', chieu:'', toi:''});
-  return s;
+    data = raw ? JSON.parse(raw) : null;
+  }catch(e){ data = null; }
+
+  // migrate from old single-text-per-slot format (dayflow-schedule-v1) if present and v2 missing
+  if(!data){
+    try{
+      const oldRaw = localStorage.getItem('dayflow-schedule-v1') || localStorage.getItem('nhip-tuan-schedule-v1');
+      if(oldRaw){
+        const old = JSON.parse(oldRaw);
+        data = {};
+        DAYS.forEach(d=>{
+          const day = old[d.jsDay] || {};
+          const nd = emptyDay();
+          SLOTS.forEach(s=>{
+            const v = (day[s.key]||'').trim();
+            if(v) nd[s.key] = [{id:genId(), time:'', text:v}];
+          });
+          data[d.jsDay] = nd;
+        });
+      }
+    }catch(e){}
+  }
+
+  if(!data) data = {};
+  DAYS.forEach(d=>{
+    if(!data[d.jsDay]) data[d.jsDay] = emptyDay();
+    SLOTS.forEach(s=>{
+      if(!Array.isArray(data[d.jsDay][s.key])) data[d.jsDay][s.key] = [];
+      data[d.jsDay][s.key].forEach(a=>{ if(!a.id) a.id = genId(); });
+    });
+  });
+  return data;
 }
+
 let schedule = loadSchedule();
 let state = { view: 'today' };
 
@@ -117,6 +170,12 @@ function currentSlotKey(){
 function pad2(n){ return String(n).padStart(2,'0'); }
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 
+function notifBtnHtml(){
+  if(!('Notification' in window)) return '';
+  if(Notification.permission === 'granted') return '';
+  return `<button class="notif-btn" id="notif-btn">Bật thông báo nhắc giờ hoạt động</button>`;
+}
+
 function render(){
   const app = document.getElementById('app');
   app.innerHTML = state.view === 'today' ? renderToday() : renderEdit();
@@ -128,7 +187,7 @@ function renderToday(){
   const jsDay = now.getDay();
   const dayInfo = DAYS.find(d=>d.jsDay===jsDay);
   const dateStr = `${pad2(now.getDate())}/${pad2(now.getMonth()+1)}/${now.getFullYear()}`;
-  const todaySchedule = schedule[jsDay] || {sang:'',trua:'',chieu:'',toi:''};
+  const todaySchedule = schedule[jsDay] || emptyDay();
   const activeKey = currentSlotKey();
   const activeIdx = SLOTS.findIndex(s=>s.key===activeKey);
 
@@ -137,25 +196,33 @@ function renderToday(){
     arcHtml += `<div class="arc-node ${i===activeIdx?'active':''}" style="--nc:var(${s.varName})"></div>`;
     if(i < SLOTS.length-1){
       const filled = i < activeIdx;
-      const lc = `var(${s.varName})`, rc = `var(${SLOTS[i+1].varName})`;
-      arcHtml += `<div class="arc-line ${filled?'filled':''}" style="--lc:${lc}; --rc:${rc};"></div>`;
+      arcHtml += `<div class="arc-line ${filled?'filled':''}" style="--lc:var(${s.varName}); --rc:var(${SLOTS[i+1].varName});"></div>`;
     }
   });
   arcHtml += '</div><div class="arc-labels">' + SLOTS.map(s=>`<span>${s.label[0]}</span>`).join('') + '</div>';
 
   const cards = SLOTS.map(s=>{
-    const task = (todaySchedule[s.key]||'').trim();
+    const activities = (todaySchedule[s.key]||[]).slice().sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+    const withText = activities.filter(a=>(a.text||'').trim());
+    const list = withText.length
+      ? `<div class="activity-list">${withText.map(a=>`
+          <div class="activity-row">
+            <span class="activity-time">${a.time?escapeHtml(a.time):''}</span>
+            <span class="activity-text">${escapeHtml(a.text)}</span>
+          </div>
+        `).join('')}</div>`
+      : `<div class="slot-task empty">Không có công việc nào</div>`;
     return `
       <div class="slot-card" style="--sc:var(${s.varName})">
         <div class="slot-head"><span class="slot-dot"></span><span class="slot-name">${s.label}</span></div>
-        <div class="slot-task ${task?'':'empty'}">${task ? escapeHtml(task) : 'Không có công việc nào'}</div>
+        ${list}
       </div>
     `;
   }).join('');
 
   return `
     <div class="topbar">
-      <div class="wordmark">Nhịp Tuần</div>
+      <div class="wordmark">Dayflow</div>
       <button class="icon-btn" id="edit-btn" aria-label="Chỉnh sửa lịch tuần">✎</button>
     </div>
     <div class="date-row">
@@ -164,6 +231,7 @@ function renderToday(){
     </div>
     <div class="arc-wrap">${arcHtml}</div>
     ${cards}
+    ${notifBtnHtml()}
   `;
 }
 
@@ -172,17 +240,27 @@ function renderEdit(){
   const todayJsDay = now.getDay();
 
   const blocks = DAYS.map(d=>{
-    const rows = SLOTS.map(s=>`
-      <div class="slot-input-row">
-        <span class="mini-dot" style="background:var(${s.varName})"></span>
-        <label>${s.label}</label>
-        <input type="text" value="${escapeHtml(schedule[d.jsDay][s.key]||'')}" data-day="${d.jsDay}" data-slot="${s.key}" placeholder="vd: Học tiếng Anh">
-      </div>
-    `).join('');
+    const slotsHtml = SLOTS.map(s=>{
+      const activities = schedule[d.jsDay][s.key] || [];
+      const rows = activities.map(a=>`
+        <div class="activity-edit-row">
+          <input type="time" value="${escapeHtml(a.time||'')}" data-act-time="${d.jsDay}|${s.key}|${a.id}">
+          <input type="text" value="${escapeHtml(a.text||'')}" data-act-text="${d.jsDay}|${s.key}|${a.id}" placeholder="hoạt động">
+          <button class="del-btn" data-act-del="${d.jsDay}|${s.key}|${a.id}">✕</button>
+        </div>
+      `).join('');
+      return `
+        <div class="slot-edit-block">
+          <div class="slot-edit-head"><span class="mini-dot" style="background:var(${s.varName})"></span><span>${s.label}</span></div>
+          ${rows}
+          <button class="add-activity-btn" data-act-add="${d.jsDay}|${s.key}">+ Thêm hoạt động</button>
+        </div>
+      `;
+    }).join('');
     return `
       <div class="day-block ${d.jsDay===todayJsDay?'today':''}">
         <div class="day-block-title">${d.label}${d.jsDay===todayJsDay?' · hôm nay':''}</div>
-        ${rows}
+        ${slotsHtml}
       </div>
     `;
   }).join('');
@@ -192,7 +270,7 @@ function renderEdit(){
       <div class="wordmark">Chỉnh lịch tuần</div>
       <button class="icon-btn" id="back-btn" aria-label="Quay lại">←</button>
     </div>
-    <div class="hint" style="text-align:left; margin-top:16px;">Điền công việc cho từng buổi trong tuần. Bỏ trống buổi nào thì màn hình "Hôm nay" sẽ hiện "Không có công việc nào" cho buổi đó.</div>
+    <div class="hint" style="text-align:left; margin-top:16px;">Mỗi buổi có thể thêm nhiều hoạt động, mỗi hoạt động gắn 1 giờ cụ thể (không bắt buộc). Đến đúng giờ đó, app sẽ gửi thông báo nhắc nếu bạn đã bật thông báo và app đang mở.</div>
     <div class="section-label">Cả tuần</div>
     ${blocks}
     <button class="reset-btn" id="reset-btn">Xoá toàn bộ lịch tuần</button>
@@ -205,27 +283,80 @@ function bindEvents(){
   const backBtn = document.getElementById('back-btn');
   if(backBtn) backBtn.onclick = ()=>{ state.view='today'; render(); };
 
-  document.querySelectorAll('[data-day]').forEach(el=>{
+  const notifBtn = document.getElementById('notif-btn');
+  if(notifBtn) notifBtn.onclick = ()=>{ Notification.requestPermission().then(()=> render()); };
+
+  document.querySelectorAll('[data-act-time]').forEach(el=>{
     el.onchange = ()=>{
-      const day = parseInt(el.dataset.day,10);
-      const slot = el.dataset.slot;
-      schedule[day][slot] = el.value.trim();
-      persist();
+      const [day,slot,id] = el.dataset.actTime.split('|');
+      const act = (schedule[day][slot]||[]).find(a=>a.id===id);
+      if(act){ act.time = el.value; act.lastNotifiedDate = null; persist(); }
+    };
+  });
+  document.querySelectorAll('[data-act-text]').forEach(el=>{
+    el.onchange = ()=>{
+      const [day,slot,id] = el.dataset.actText.split('|');
+      const act = (schedule[day][slot]||[]).find(a=>a.id===id);
+      if(act){ act.text = el.value.trim(); persist(); }
+    };
+  });
+  document.querySelectorAll('[data-act-del]').forEach(el=>{
+    el.onclick = ()=>{
+      const [day,slot,id] = el.dataset.actDel.split('|');
+      schedule[day][slot] = (schedule[day][slot]||[]).filter(a=>a.id!==id);
+      persist(); render();
+    };
+  });
+  document.querySelectorAll('[data-act-add]').forEach(el=>{
+    el.onclick = ()=>{
+      const [day,slot] = el.dataset.actAdd.split('|');
+      if(!schedule[day][slot]) schedule[day][slot] = [];
+      schedule[day][slot].push({id:genId(), time:'', text:''});
+      persist(); render();
     };
   });
 
   const resetBtn = document.getElementById('reset-btn');
   if(resetBtn) resetBtn.onclick = ()=>{
-    DAYS.forEach(d=> schedule[d.jsDay] = {sang:'',trua:'',chieu:'',toi:''});
+    DAYS.forEach(d=> schedule[d.jsDay] = emptyDay());
     persist(); render();
   };
 }
+
+function checkNotifications(){
+  if(state.view !== 'today') return;
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  const now = new Date();
+  const jsDay = now.getDay();
+  const todayStr = now.toDateString();
+  const nowMinutes = now.getHours()*60 + now.getMinutes();
+  const daySchedule = schedule[jsDay];
+  if(!daySchedule) return;
+  let changed = false;
+  SLOTS.forEach(s=>{
+    (daySchedule[s.key]||[]).forEach(a=>{
+      if(!a.time || !(a.text||'').trim()) return;
+      if(a.lastNotifiedDate === todayStr) return;
+      const [h,m] = a.time.split(':').map(Number);
+      const actMinutes = h*60+m;
+      if(nowMinutes >= actMinutes && nowMinutes <= actMinutes+5){
+        a.lastNotifiedDate = todayStr;
+        changed = true;
+        try{ new Notification('Dayflow', {body: a.text}); }catch(e){}
+      }
+    });
+  });
+  if(changed) persist();
+}
+setInterval(checkNotifications, 15000);
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) checkNotifications(); });
 
 if('serviceWorker' in navigator){
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
 }
 
 render();
+checkNotifications();
 setInterval(()=>{ if(state.view==='today') render(); }, 60000);
 </script>
 </body>
