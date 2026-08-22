@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0B0E1A">
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icon-192.png">
+<title>Nhịp Tuần</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --ink:#0B0E1A; --surface:#151A2E; --surface-2:#1D2338;
+    --text:#EDEFF7; --text-dim:#9096B5;
+    --line: rgba(237,239,247,0.10);
+    --dawn:#F2A65A; --noon:#FFD166; --dusk:#EF6F6C; --night:#7C6FF0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; background:#05060D;}
+  body{ font-family:'Inter',sans-serif; -webkit-tap-highlight-color:transparent; }
+  .app{
+    min-height:100vh; max-width:460px; margin:0 auto; background:var(--ink); color:var(--text);
+    padding: calc(env(safe-area-inset-top) + 20px) 20px calc(env(safe-area-inset-bottom) + 32px);
+  }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; }
+  .wordmark{ font-family:'Fraunces',serif; font-weight:600; font-style:italic; font-size:24px; letter-spacing:-0.01em; }
+  .icon-btn{ width:38px; height:38px; border-radius:11px; border:1px solid var(--line); background:var(--surface); color:var(--text); font-size:16px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .icon-btn:active{ transform:scale(0.94); }
+
+  .date-row{ margin-top:22px; }
+  .day-label{ font-family:'Fraunces',serif; font-weight:600; font-size:28px; }
+  .date-sub{ font-family:'IBM Plex Mono'; font-size:12px; color:var(--text-dim); margin-top:4px; }
+
+  /* signature: day arc */
+  .arc-wrap{ margin:28px 0 8px; }
+  .arc{ display:flex; align-items:center; }
+  .arc-node{ flex:0 0 auto; width:14px; height:14px; border-radius:50%; background:var(--surface-2); border:2px solid var(--line); position:relative; }
+  .arc-node.active{ box-shadow:0 0 0 5px color-mix(in srgb, var(--nc) 25%, transparent); border-color: var(--nc); background:var(--nc); }
+  .arc-line{ flex:1; height:2px; background:var(--line); margin:0 2px; }
+  .arc-line.filled{ background:linear-gradient(90deg, var(--lc), var(--rc)); }
+  .arc-labels{ display:flex; justify-content:space-between; margin-top:8px; }
+  .arc-labels span{ font-family:'IBM Plex Mono'; font-size:10px; color:var(--text-dim); width:14px; text-align:center; transform:translateX(0); }
+
+  .slot-card{ margin-top:14px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; border-left:3px solid var(--sc); }
+  .slot-head{ display:flex; align-items:center; gap:8px; }
+  .slot-dot{ width:8px; height:8px; border-radius:50%; background:var(--sc); }
+  .slot-name{ font-family:'Fraunces',serif; font-weight:500; font-size:15px; color:var(--text-dim); }
+  .slot-task{ margin-top:8px; font-size:16px; line-height:1.5; }
+  .slot-task.empty{ color:var(--text-dim); font-style:italic; }
+
+  .section-label{ margin: 26px 0 10px; font-size:12px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-dim); font-weight:600; }
+
+  .day-block{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:16px 18px; margin-bottom:12px; }
+  .day-block-title{ font-family:'Fraunces',serif; font-weight:600; font-size:16px; margin-bottom:10px; }
+  .day-block.today{ border-color: var(--night); }
+  .slot-input-row{ display:flex; align-items:center; gap:10px; padding:6px 0; }
+  .slot-input-row .mini-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .slot-input-row label{ width:44px; flex-shrink:0; font-family:'IBM Plex Mono'; font-size:11px; color:var(--text-dim); }
+  .slot-input-row input{
+    flex:1; min-width:0; background:var(--surface-2); border:1px solid var(--line); border-radius:10px;
+    color:var(--text); padding:9px 11px; font-size:13px; font-family:'Inter'; outline:none;
+  }
+  .slot-input-row input:focus{ border-color: var(--night); }
+
+  .hint{ margin-top:14px; font-size:12px; color:var(--text-dim); text-align:center; line-height:1.5; }
+  .reset-btn{ margin-top:22px; width:100%; padding:13px; border-radius:14px; border:1px solid var(--line); background:var(--surface); color:var(--text-dim); font-size:13px; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<script>
+const STORE_KEY = "nhip-tuan-schedule-v1";
+
+const DAYS = [
+  {jsDay:1, label:'Thứ Hai'},
+  {jsDay:2, label:'Thứ Ba'},
+  {jsDay:3, label:'Thứ Tư'},
+  {jsDay:4, label:'Thứ Năm'},
+  {jsDay:5, label:'Thứ Sáu'},
+  {jsDay:6, label:'Thứ Bảy'},
+  {jsDay:0, label:'Chủ Nhật'},
+];
+
+const SLOTS = [
+  {key:'sang', label:'Sáng', varName:'--dawn'},
+  {key:'trua', label:'Trưa', varName:'--noon'},
+  {key:'chieu', label:'Chiều', varName:'--dusk'},
+  {key:'toi', label:'Tối', varName:'--night'},
+];
+
+function loadSchedule(){
+  try{
+    const raw = localStorage.getItem(STORE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  const s = {};
+  DAYS.forEach(d=> s[d.jsDay] = {sang:'', trua:'', chieu:'', toi:''});
+  return s;
+}
+let schedule = loadSchedule();
+let state = { view: 'today' };
+
+function persist(){ localStorage.setItem(STORE_KEY, JSON.stringify(schedule)); }
+
+function currentSlotKey(){
+  const h = new Date().getHours();
+  if(h>=4 && h<11) return 'sang';
+  if(h>=11 && h<13) return 'trua';
+  if(h>=13 && h<18) return 'chieu';
+  return 'toi';
+}
+
+function pad2(n){ return String(n).padStart(2,'0'); }
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function render(){
+  const app = document.getElementById('app');
+  app.innerHTML = state.view === 'today' ? renderToday() : renderEdit();
+  bindEvents();
+}
+
+function renderToday(){
+  const now = new Date();
+  const jsDay = now.getDay();
+  const dayInfo = DAYS.find(d=>d.jsDay===jsDay);
+  const dateStr = `${pad2(now.getDate())}/${pad2(now.getMonth()+1)}/${now.getFullYear()}`;
+  const todaySchedule = schedule[jsDay] || {sang:'',trua:'',chieu:'',toi:''};
+  const activeKey = currentSlotKey();
+  const activeIdx = SLOTS.findIndex(s=>s.key===activeKey);
+
+  let arcHtml = '<div class="arc">';
+  SLOTS.forEach((s,i)=>{
+    arcHtml += `<div class="arc-node ${i===activeIdx?'active':''}" style="--nc:var(${s.varName})"></div>`;
+    if(i < SLOTS.length-1){
+      const filled = i < activeIdx;
+      const lc = `var(${s.varName})`, rc = `var(${SLOTS[i+1].varName})`;
+      arcHtml += `<div class="arc-line ${filled?'filled':''}" style="--lc:${lc}; --rc:${rc};"></div>`;
+    }
+  });
+  arcHtml += '</div><div class="arc-labels">' + SLOTS.map(s=>`<span>${s.label[0]}</span>`).join('') + '</div>';
+
+  const cards = SLOTS.map(s=>{
+    const task = (todaySchedule[s.key]||'').trim();
+    return `
+      <div class="slot-card" style="--sc:var(${s.varName})">
+        <div class="slot-head"><span class="slot-dot"></span><span class="slot-name">${s.label}</span></div>
+        <div class="slot-task ${task?'':'empty'}">${task ? escapeHtml(task) : 'Không có công việc nào'}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="topbar">
+      <div class="wordmark">Nhịp Tuần</div>
+      <button class="icon-btn" id="edit-btn" aria-label="Chỉnh sửa lịch tuần">✎</button>
+    </div>
+    <div class="date-row">
+      <div class="day-label">${dayInfo.label}</div>
+      <div class="date-sub">${dateStr}</div>
+    </div>
+    <div class="arc-wrap">${arcHtml}</div>
+    ${cards}
+  `;
+}
+
+function renderEdit(){
+  const now = new Date();
+  const todayJsDay = now.getDay();
+
+  const blocks = DAYS.map(d=>{
+    const rows = SLOTS.map(s=>`
+      <div class="slot-input-row">
+        <span class="mini-dot" style="background:var(${s.varName})"></span>
+        <label>${s.label}</label>
+        <input type="text" value="${escapeHtml(schedule[d.jsDay][s.key]||'')}" data-day="${d.jsDay}" data-slot="${s.key}" placeholder="vd: Học tiếng Anh">
+      </div>
+    `).join('');
+    return `
+      <div class="day-block ${d.jsDay===todayJsDay?'today':''}">
+        <div class="day-block-title">${d.label}${d.jsDay===todayJsDay?' · hôm nay':''}</div>
+        ${rows}
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="topbar">
+      <div class="wordmark">Chỉnh lịch tuần</div>
+      <button class="icon-btn" id="back-btn" aria-label="Quay lại">←</button>
+    </div>
+    <div class="hint" style="text-align:left; margin-top:16px;">Điền công việc cho từng buổi trong tuần. Bỏ trống buổi nào thì màn hình "Hôm nay" sẽ hiện "Không có công việc nào" cho buổi đó.</div>
+    <div class="section-label">Cả tuần</div>
+    ${blocks}
+    <button class="reset-btn" id="reset-btn">Xoá toàn bộ lịch tuần</button>
+  `;
+}
+
+function bindEvents(){
+  const editBtn = document.getElementById('edit-btn');
+  if(editBtn) editBtn.onclick = ()=>{ state.view='edit'; render(); };
+  const backBtn = document.getElementById('back-btn');
+  if(backBtn) backBtn.onclick = ()=>{ state.view='today'; render(); };
+
+  document.querySelectorAll('[data-day]').forEach(el=>{
+    el.onchange = ()=>{
+      const day = parseInt(el.dataset.day,10);
+      const slot = el.dataset.slot;
+      schedule[day][slot] = el.value.trim();
+      persist();
+    };
+  });
+
+  const resetBtn = document.getElementById('reset-btn');
+  if(resetBtn) resetBtn.onclick = ()=>{
+    DAYS.forEach(d=> schedule[d.jsDay] = {sang:'',trua:'',chieu:'',toi:''});
+    persist(); render();
+  };
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('./sw.js').catch(()=>{}); });
+}
+
+render();
+setInterval(()=>{ if(state.view==='today') render(); }, 60000);
+</script>
+</body>
+</html>
