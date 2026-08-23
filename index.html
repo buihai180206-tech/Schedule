@@ -135,6 +135,7 @@
 const STORE_KEY = "dayflow-schedule-v2";
 const SYNC_KEY = "dayflow-sync-v1";
 const GIST_FILENAME = "dayflow-schedule.json";
+const GIST_COMPLETIONS_FILENAME = "dayflow-completions.json";
 // English weekday keys used inside the synced Gist JSON — Shortcuts can
 // reliably produce these via Format Date (EEEE, locale en_US, lowercased).
 const DAY_KEYS = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']; // index = JS getDay()
@@ -216,14 +217,14 @@ function saveSyncConfig(){ localStorage.setItem(SYNC_KEY, JSON.stringify(syncCon
 
 function formatTime(d){ return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; }
 
-// Slot is derivable purely from the hour, same ranges as currentSlotKey().
+// Slot is derivable purely from the hour, same ranges as SLOT_RANGE below.
 // This lets us sync a flat {time -> text} map per day (what Shortcuts can
 // look up with one exact-time key) and still rebuild the right slot locally.
 function slotForTime(hhmm){
   const h = parseInt((hhmm||'').split(':')[0], 10);
-  if(h>=4 && h<11) return 'sang';
-  if(h>=11 && h<13) return 'trua';
-  if(h>=13 && h<18) return 'chieu';
+  if(h<11) return 'sang';
+  if(h<13) return 'trua';
+  if(h<19) return 'chieu';
   return 'toi';
 }
 
@@ -273,9 +274,12 @@ async function ghRequest(url, options={}){
 async function createGist(){
   const payload = scheduleToGistPayload(schedule);
   const body = {
-    description: 'Dayflow - lịch tuần (đồng bộ Web ⇄ Shortcuts)',
+    description: 'Dayflow - lịch tuần & tiến độ (đồng bộ Web ⇄ Shortcuts)',
     public: false,
-    files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } }
+    files: {
+      [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+      [GIST_COMPLETIONS_FILENAME]: { content: JSON.stringify(completions, null, 2) }
+    }
   };
   const data = await ghRequest('https://api.github.com/gists', { method:'POST', body: JSON.stringify(body) });
   syncConfig.gistId = data.id;
@@ -288,7 +292,10 @@ async function createGist(){
 async function pushToGist(){
   if(!syncConfig.token || !syncConfig.gistId) return;
   const payload = scheduleToGistPayload(schedule);
-  const body = { files: { [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) } } };
+  const body = { files: {
+    [GIST_FILENAME]: { content: JSON.stringify(payload, null, 2) },
+    [GIST_COMPLETIONS_FILENAME]: { content: JSON.stringify(completions, null, 2) }
+  }};
   const data = await ghRequest(`https://api.github.com/gists/${syncConfig.gistId}`, { method:'PATCH', body: JSON.stringify(body) });
   syncConfig.username = data.owner ? data.owner.login : syncConfig.username;
   syncConfig.lastSync = new Date().toISOString();
@@ -303,6 +310,21 @@ async function pullFromGist(){
   if(file && file.content){
     schedule = gistPayloadToSchedule(JSON.parse(file.content));
     persist();
+  }
+  const compFile = data.files && data.files[GIST_COMPLETIONS_FILENAME];
+  if(compFile && compFile.content){
+    let remote = {};
+    try{ remote = JSON.parse(compFile.content) || {}; }catch(e){}
+    // Gộp (không ghi đè): 1 hoạt động chỉ chuyển true 1 chiều (tích xong là xong),
+    // nên hợp cục bộ + máy chủ luôn an toàn — không có rủi ro mất tick vừa làm
+    // trên máy nếu lượt đẩy trước đó chưa kịp gửi lên (vd vừa tích xong đã tắt app).
+    Object.keys(remote).forEach(dKey=>{
+      if(!completions[dKey]) completions[dKey] = {};
+      Object.keys(remote[dKey]).forEach(actId=>{
+        if(remote[dKey][actId]) completions[dKey][actId] = true;
+      });
+    });
+    saveCompletions();
   }
   syncConfig.username = data.owner ? data.owner.login : syncConfig.username;
   syncConfig.lastSync = new Date().toISOString();
@@ -332,11 +354,24 @@ function schedulePush(){
   setSyncStatusText('Đang đồng bộ...');
   clearTimeout(pushTimer);
   pushTimer = setTimeout(()=>{
+    pushTimer = null;
     pushToGist()
       .then(()=> setSyncStatusText('Đã đồng bộ lúc ' + formatTime(new Date())))
       .catch(err=> setSyncStatusText('Lỗi đồng bộ: ' + err.message));
   }, 900);
 }
+
+// Nếu app bị ẩn/đóng (vuốt tắt trong đa nhiệm, chuyển app khác, khoá máy) trong
+// lúc còn đang chờ đẩy dữ liệu lên Gist (trong khoảng 900ms debounce ở trên),
+// đẩy ngay lập tức thay vì chờ hết giờ — tránh trường hợp bị đóng app giữa chừng
+// khiến Gist còn giữ bản cũ, rồi lần mở sau lại kéo bản cũ đó về.
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'hidden' && pushTimer){
+    clearTimeout(pushTimer);
+    pushTimer = null;
+    pushToGist().catch(()=>{});
+  }
+});
 
 // ---- Hoàn thành hoạt động & thống kê tuần ----
 const COMPLETIONS_KEY = "dayflow-completions-v1";
@@ -368,7 +403,13 @@ function loadCompletions(){
   return {};
 }
 let completions = loadCompletions();
-function saveCompletions(){ localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(completions)); }
+function saveCompletions(){
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 60);
+  const cutoffKey = dateKey(cutoff);
+  Object.keys(completions).forEach(k=>{ if(k < cutoffKey) delete completions[k]; });
+  localStorage.setItem(COMPLETIONS_KEY, JSON.stringify(completions));
+}
 
 function isCompleted(dKey, actId){ return !!(completions[dKey] && completions[dKey][actId]); }
 function setCompleted(dKey, actId, val){
@@ -597,6 +638,7 @@ function bindEvents(){
     el.onchange = ()=>{
       const [dKey, actId] = el.dataset.check.split('|');
       setCompleted(dKey, actId, el.checked);
+      schedulePush();
       render();
     };
   });

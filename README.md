@@ -36,7 +36,19 @@ Mỗi hoạt động trong Dayflow có **giờ cụ thể riêng** (không cố 
 - **Nội dung & việc bạn gán cho ngày nào** → đồng bộ tự động qua Gist, sửa trong app Web là Shortcuts đọc được, không cần đụng vào Shortcuts.
 - **Giờ kích hoạt** → mỗi **mốc giờ khác nhau** bạn từng dùng trong tuần cần đúng **1 Automation** tương ứng (không phải theo từng buổi, từng ngày, hay từng hoạt động — chỉ theo giờ). Ví dụ cả tuần bạn chỉ dùng 3 mốc giờ: 07:00, 12:30, 20:00 → chỉ cần 3 Automation, dù có 10 hoạt động khác nhau nằm rải ở các ngày khác nhau lúc 07:00. Khi nào bạn thêm một **giờ hoàn toàn mới** (ví dụ 15:45) chưa từng dùng, lúc đó mới cần tạo thêm 1 Automation mới cho giờ đó — việc này làm thủ công trong Shortcuts, không tự động được vì iOS không cho app tạo Automation hộ bạn.
 
-## Thiết lập đồng bộ (Gist) — chỉ làm 1 lần
+## Vì sao xoá app khỏi màn hình chính làm mất hết lịch & tick đã làm
+
+Khi bạn **xoá icon app khỏi màn hình chính**, iOS coi như xoá hẳn app đó — toàn bộ dữ liệu lưu trên máy (`localStorage`, gồm cả lịch và các lượt tích hoàn thành) bị xoá theo, giống hệt xoá 1 app thường. Đây là hành vi mặc định của iOS, không phải lỗi của Dayflow, và không có cách nào giữ lại dữ liệu cũ nếu bạn chưa từng bật đồng bộ trước khi xoá.
+
+Cách duy nhất để không mất dữ liệu khi lỡ xoá app (hoặc đổi máy): **bật "Đồng bộ" ở mục cuối màn hình "Chỉnh lịch tuần" trước**. Từ bản này, mục Đồng bộ sao lưu cả 2 phần lên cùng 1 Gist:
+- `dayflow-schedule.json` — lịch tuần (hoạt động, giờ).
+- `dayflow-completions.json` — toàn bộ lượt tích hoàn thành 60 ngày gần nhất (dữ liệu cũ hơn tự dọn bớt để file không phình to).
+
+Nếu chẳng may xoá app: cài lại theo hướng dẫn ở trên → vào mục Đồng bộ → dán lại đúng token + Gist ID cũ → bấm "Lưu & đồng bộ ngay" → lịch và các lượt tích sẽ được kéo về lại đầy đủ.
+
+> Lưu ý: vuốt tắt app trong đa nhiệm (App Switcher) — như đóng app YouTube bình thường — **không** xoá dữ liệu trên máy, khác hẳn với xoá icon. App cũng tự đẩy ngay dữ liệu lên Gist nếu bạn thoát/khoá máy trong lúc đang chờ đồng bộ (thay vì chờ đủ ~1 giây), và khi kéo dữ liệu về app **gộp** thay vì ghi đè — nên tick vừa làm sẽ không bao giờ bị 1 bản cũ trên Gist ghi đè mất.
+
+
 
 Mục "Đồng bộ" nằm cuối màn hình "Chỉnh lịch tuần".
 
@@ -47,6 +59,16 @@ Mục "Đồng bộ" nằm cuối màn hình "Chỉnh lịch tuần".
 5. Từ giờ mỗi lần sửa hoạt động (thêm/sửa/xoá/đổi giờ) trong app, app tự đẩy lên Gist sau ~1 giây; trạng thái hiện ngay dưới 2 nút.
 
 > Token lưu trong trình duyệt của máy bạn (localStorage) — coi như mật khẩu, không chia sẻ URL Raw/token cho người khác vì ai có token sửa được Gist. Dùng lại trên máy khác: dán đúng token + Gist ID cũ rồi bấm "Lưu & đồng bộ ngay", không cần tạo Gist mới.
+
+## Nếu thấy app vẫn hành xử "kiểu cũ" dù mình đã báo đã sửa lỗi
+
+PWA trên iOS đôi khi vẫn giữ 1 bản cache cũ của app dù bạn đã cài lại từ file mới — do trình duyệt cache riêng file `sw.js` (service worker) nên không nhận ra có bản cập nhật để tải bản mới về. Bản này thêm file `_headers` để Netlify ngừng cache `sw.js`, giúp việc cập nhật đáng tin cậy hơn cho các lần sau — nhưng nếu bạn đang thấy hành vi cũ ngay bây giờ, làm theo các bước sau để chắc chắn có đúng bản mới nhất:
+
+1. **Bật Đồng bộ trước** (nếu chưa) để không mất lịch/tick khi làm bước tiếp theo — xem mục "Thiết lập đồng bộ" bên dưới.
+2. Xoá icon app khỏi màn hình chính (chấp nhận mất dữ liệu local, sẽ khôi phục lại qua Gist).
+3. Kéo thả **lại toàn bộ 7 file** (gồm cả `_headers`) vào https://app.netlify.com/drop để có 1 link/deploy hoàn toàn mới — dùng đúng link mới này, không dùng lại link cũ đã lưu trước đó vì link cũ có thể vẫn trỏ tới bản deploy cũ.
+4. Mở link mới bằng Safari → Thêm vào MH chính lại.
+5. Vào mục Đồng bộ, dán lại token + Gist ID cũ → "Lưu & đồng bộ ngay" để kéo lịch/tick về.
 
 ## Tạo Automation trong Shortcuts — 1 lần cho mỗi mốc giờ
 
