@@ -68,9 +68,11 @@
   .activity-check:disabled:checked{ opacity:0.85; }
 
   .stats-teaser{
-    margin-top:14px; display:flex; align-items:center; justify-content:space-between;
+    margin-top:14px; display:flex; flex-direction:column; gap:8px;
     background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 18px; cursor:pointer;
   }
+  .stats-teaser-row{ display:flex; align-items:center; justify-content:space-between; font-size:14px; }
+  .stats-teaser-row.week{ padding-top:8px; border-top:1px solid var(--line); }
   .stats-teaser-pct{ font-family:'Fraunces',serif; font-weight:600; color:var(--night); }
   .stats-teaser-arrow{ color:var(--text-dim); }
 
@@ -303,6 +305,24 @@ async function pushToGist(){
   return data;
 }
 
+// Đẩy riêng phần tích hoàn thành lên Gist — gọi ngay lập tức (không chờ debounce
+// như pushToGist ở trên) mỗi khi tích 1 hoạt động, vì đây là hành động rời rạc,
+// không cần gộp nhiều lần như khi đang gõ chữ. Giảm tối đa khoảng thời gian dữ
+// liệu "chưa kịp gửi" nếu bạn vuốt tắt app ngay sau khi tích.
+async function pushCompletionsNow(){
+  if(!syncConfig.token || !syncConfig.gistId) return;
+  try{
+    const body = { files: { [GIST_COMPLETIONS_FILENAME]: { content: JSON.stringify(completions, null, 2) } } };
+    const data = await ghRequest(`https://api.github.com/gists/${syncConfig.gistId}`, { method:'PATCH', body: JSON.stringify(body) });
+    syncConfig.username = data.owner ? data.owner.login : syncConfig.username;
+    syncConfig.lastSync = new Date().toISOString();
+    saveSyncConfig();
+    setSyncStatusText('Đã đồng bộ lúc ' + formatTime(new Date()));
+  }catch(err){
+    setSyncStatusText('Lỗi đồng bộ: ' + err.message);
+  }
+}
+
 async function pullFromGist(){
   if(!syncConfig.token || !syncConfig.gistId) return;
   const data = await ghRequest(`https://api.github.com/gists/${syncConfig.gistId}`);
@@ -365,13 +385,17 @@ function schedulePush(){
 // lúc còn đang chờ đẩy dữ liệu lên Gist (trong khoảng 900ms debounce ở trên),
 // đẩy ngay lập tức thay vì chờ hết giờ — tránh trường hợp bị đóng app giữa chừng
 // khiến Gist còn giữ bản cũ, rồi lần mở sau lại kéo bản cũ đó về.
-document.addEventListener('visibilitychange', ()=>{
-  if(document.visibilityState === 'hidden' && pushTimer){
+// Gắn cả 2 sự kiện (visibilitychange + pagehide) vì trên Safari/iOS không phải
+// lúc nào visibilitychange cũng kịp bắn trước khi trang bị đóng hẳn.
+function flushPendingPush(){
+  if(pushTimer){
     clearTimeout(pushTimer);
     pushTimer = null;
     pushToGist().catch(()=>{});
   }
-});
+}
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') flushPendingPush(); });
+window.addEventListener('pagehide', flushPendingPush);
 
 // ---- Hoàn thành hoạt động & thống kê tuần ----
 const COMPLETIONS_KEY = "dayflow-completions-v1";
@@ -428,15 +452,25 @@ function isSlotLocked(dKey, slotKey, now){
   return now.getHours() >= SLOT_END_HOUR[slotKey];
 }
 
-// Thống kê 7 ngày gần nhất (tính cả hôm nay). Chỉ tính những hoạt động mà
-// buổi của nó đã khoá (đã tới hạn) — buổi chưa tới thì chưa có kết quả nên
-// không đưa vào mẫu số.
+// Thứ Hai của tuần chứa ngày `now` (tuần tính theo kiểu VN: Thứ Hai → Chủ Nhật).
+function currentWeekMonday(now){
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const day = d.getDay(); // 0=CN,1=T2,...6=T7
+  const diff = (day === 0) ? -6 : (1 - day);
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+// Thống kê từ Thứ Hai của tuần này đến hết hôm nay — không tính trước các ngày
+// chưa tới trong tuần. Vì luôn bắt đầu lại từ Thứ Hai, số % tự "reset" mỗi khi
+// sang tuần mới (đêm Chủ Nhật). Chỉ tính hoạt động đã "tới hạn" (buổi đã khoá).
 function computeWeeklyStats(){
   const now = new Date();
+  const monday = currentWeekMonday(now);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   let total = 0, done = 0;
   const days = [];
-  for(let i=6; i>=0; i--){
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+  for(let d = new Date(monday); d <= today; d.setDate(d.getDate()+1)){
     const dKey = dateKey(d);
     const jsDay = d.getDay();
     const daySchedule = schedule[jsDay] || emptyDay();
@@ -454,6 +488,24 @@ function computeWeeklyStats(){
   }
   const pct = total>0 ? Math.round(done/total*100) : 0;
   return { total, done, pct, days };
+}
+
+// Số hoạt động hôm nay đã tích / tổng số hoạt động hôm nay — cập nhật ngay khi
+// tích, không chờ buổi khoá (khác với thống kê tuần, để bạn thấy tiến độ trong
+// ngày ngay lập tức).
+function computeTodayStats(){
+  const now = new Date();
+  const dKey = dateKey(now);
+  const daySchedule = schedule[now.getDay()] || emptyDay();
+  let total = 0, done = 0;
+  SLOTS.forEach(s=>{
+    (daySchedule[s.key]||[]).forEach(a=>{
+      if(!(a.text||'').trim()) return;
+      total++;
+      if(isCompleted(dKey, a.id)) done++;
+    });
+  });
+  return { total, done };
 }
 
 function currentSlotKey(){
@@ -524,6 +576,7 @@ function renderToday(){
   }).join('');
 
   const stats = computeWeeklyStats();
+  const today = computeTodayStats();
 
   return `
     <div class="topbar">
@@ -537,8 +590,8 @@ function renderToday(){
     <div class="arc-wrap">${arcHtml}</div>
     ${cards}
     <div class="stats-teaser" id="stats-teaser">
-      <span>Tuần này: <span class="stats-teaser-pct">${stats.pct}%</span> hoàn thành (${stats.done}/${stats.total})</span>
-      <span class="stats-teaser-arrow">→</span>
+      <div class="stats-teaser-row"><span>Hôm nay: <span class="stats-teaser-pct">${today.done}/${today.total}</span> hoàn thành</span></div>
+      <div class="stats-teaser-row week"><span>Tuần này: <span class="stats-teaser-pct">${stats.pct}%</span> hoàn thành (${stats.done}/${stats.total})</span><span class="stats-teaser-arrow">→</span></div>
     </div>
     ${notifBtnHtml()}
   `;
@@ -546,6 +599,7 @@ function renderToday(){
 
 function renderStats(){
   const { total, done, pct, days } = computeWeeklyStats();
+  const today = computeTodayStats();
   const rows = days.map(d=>`
     <div class="stats-day-row">
       <span>${d.label}</span>
@@ -558,13 +612,14 @@ function renderStats(){
       <div class="wordmark">Thống kê tuần</div>
       <button class="icon-btn" id="back-stats-btn" aria-label="Quay lại">←</button>
     </div>
+    <div class="hint" style="text-align:left; margin-top:16px;">Hôm nay: <strong style="color:var(--text);">${today.done}/${today.total}</strong> hoàn thành</div>
     <div class="stats-hero">
       <div class="stats-pct">${pct}%</div>
-      <div class="stats-sub">${done}/${total} hoạt động đã hoàn thành (7 ngày qua)</div>
+      <div class="stats-sub">${done}/${total} hoạt động đã hoàn thành (từ Thứ Hai tuần này)</div>
     </div>
     <div class="section-label">Theo ngày</div>
     <div class="stats-day-list">${rows}</div>
-    <div class="hint">Hoạt động nào đã qua buổi (sáng/trưa/chiều/tối) mà chưa tích sẽ tự tính là chưa hoàn thành và khoá ô tích lại. Chỉ hoạt động đã tới hạn mới được tính vào thống kê.</div>
+    <div class="hint">Hoạt động nào đã qua buổi (sáng/trưa/chiều/tối) mà chưa tích sẽ tự tính là chưa hoàn thành và khoá ô tích lại. Chỉ hoạt động đã tới hạn mới được tính vào thống kê. Sang Thứ Hai tuần mới, số % này tự bắt đầu lại từ đầu.</div>
   `;
 }
 
@@ -638,7 +693,7 @@ function bindEvents(){
     el.onchange = ()=>{
       const [dKey, actId] = el.dataset.check.split('|');
       setCompleted(dKey, actId, el.checked);
-      schedulePush();
+      pushCompletionsNow();
       render();
     };
   });

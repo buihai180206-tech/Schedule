@@ -15,12 +15,15 @@
 4. Bấm **←** để quay lại — màn hình chính tự nhận diện hôm nay, các hoạt động trong buổi được sắp theo giờ tăng dần.
 5. Bấm **"Bật thông báo nhắc giờ hoạt động"** để cho phép thông báo ngay trong trình duyệt — dùng được khi app đang mở, tiện cho lúc đang dùng điện thoại.
 
-## Tích hoàn thành & thống kê tuần
+## Tích hoàn thành & thống kê
 
-- Mỗi hoạt động ở màn hình chính có 1 ô tích bên trái. Làm xong thì bấm tích — chữ sẽ gạch ngang.
+- Mỗi hoạt động ở màn hình chính có 1 ô tích bên trái. Làm xong thì bấm tích — chữ sẽ gạch ngang, và **đẩy lên Gist ngay lập tức** (không chờ như khi sửa lịch) nếu bạn đã bật Đồng bộ.
 - **Khi buổi đó (sáng/trưa/chiều/tối) đã trôi qua trong ngày mà bạn chưa tích**, ô tích tự **khoá lại** (hiện dấu ✕ đỏ, không bấm được nữa) và hoạt động đó bị tính là **chưa hoàn thành** — không tích bù được sau đó; hoạt động đã tích rồi cũng không gỡ tích lại được sau khi buổi khoá, để số liệu không bị sửa ngược.
 - Mốc khoá theo từng buổi: Sáng khoá lúc 11:00, Trưa lúc 13:00, Chiều lúc 19:00, Tối khoá khi sang ngày mới (00:00). Ngày đã qua thì toàn bộ ô tích của ngày đó luôn ở trạng thái khoá.
-- Dưới danh sách hoạt động ở màn hình chính có 1 thẻ nhỏ hiện **% hoàn thành của 7 ngày gần nhất** — bấm vào để xem chi tiết theo từng ngày. Chỉ hoạt động đã "tới hạn" (buổi đã khoá) mới được tính vào phần trăm; hoạt động của buổi chưa tới thì chưa tính, tránh làm giảm ảo tỉ lệ trước khi bạn có cơ hội thực hiện.
+- Dưới danh sách hoạt động ở màn hình chính có 1 thẻ gồm 2 dòng:
+  - **Hôm nay: x/y hoàn thành** — đếm sống ngay khi bạn tích, trên tổng số hoạt động đặt cho hôm nay.
+  - **Tuần này: z% hoàn thành** — tính từ **Thứ Hai của tuần hiện tại** đến hết hôm nay (không tính trước các ngày chưa tới). Sang **Thứ Hai tuần mới** (tức đêm Chủ Nhật vừa qua), số % này **tự bắt đầu lại từ 0** vì lúc đó tuần mới chỉ mới có 1 ngày (hôm đó) để tính.
+- Bấm vào thẻ để xem chi tiết theo từng ngày trong tuần ("Thống kê tuần"). Chỉ hoạt động đã "tới hạn" (buổi đã khoá) mới được tính vào %; hoạt động của buổi chưa tới thì chưa tính, tránh làm giảm ảo tỉ lệ trước khi bạn có cơ hội thực hiện. Dòng "Hôm nay" thì không chờ khoá — đếm mọi hoạt động trong ngày ngay khi tích, để bạn thấy tiến độ tức thời.
 - Nếu bạn xoá hoặc thêm hoạt động, số liệu các ngày trước tính lại theo lịch mẫu hiện tại (không lưu ảnh chụp lịch cũ) — nên số liệu tuần có thể đổi nhẹ nếu bạn sửa lịch giữa tuần.
 
 ## Vì sao thông báo trong app không đáng tin cậy khi app đóng — và cách khắc phục bằng Shortcuts
@@ -45,6 +48,8 @@ Cách duy nhất để không mất dữ liệu khi lỡ xoá app (hoặc đổi
 - `dayflow-completions.json` — toàn bộ lượt tích hoàn thành 60 ngày gần nhất (dữ liệu cũ hơn tự dọn bớt để file không phình to).
 
 Nếu chẳng may xoá app: cài lại theo hướng dẫn ở trên → vào mục Đồng bộ → dán lại đúng token + Gist ID cũ → bấm "Lưu & đồng bộ ngay" → lịch và các lượt tích sẽ được kéo về lại đầy đủ.
+
+> **Vuốt tắt app trong đa nhiệm** (như đóng app YouTube bình thường) khác hẳn xoá icon — bản thân thao tác này **không** xoá dữ liệu trên máy. Nếu trước đây bạn vẫn thấy mất tick ngay sau khi vuốt tắt dù chưa xoá icon, đó là do lượt đẩy lên Gist bị cắt ngang giữa chừng. Bản này đã sửa: tích xong là **đẩy lên Gist ngay lập tức** (không còn chờ ~1 giây như trước), và app còn tự đẩy nốt phần đang chờ (khi sửa lịch) ngay khi bạn rời/ẩn app (bắt cả 2 tín hiệu `visibilitychange` lẫn `pagehide` để chắc ăn hơn trên Safari). Trường hợp cực hiếm còn sót: vuốt tắt trong tích tắc (vài phần nghìn giây) ngay sau khi tích, trước khi trình duyệt kịp gửi được request nào — đây là giới hạn phần cứng/hệ điều hành, không có cách nào chặn 100% từ phía web app.
 
 > Lưu ý: vuốt tắt app trong đa nhiệm (App Switcher) — như đóng app YouTube bình thường — **không** xoá dữ liệu trên máy, khác hẳn với xoá icon. App cũng tự đẩy ngay dữ liệu lên Gist nếu bạn thoát/khoá máy trong lúc đang chờ đồng bộ (thay vì chờ đủ ~1 giây), và khi kéo dữ liệu về app **gộp** thay vì ghi đè — nên tick vừa làm sẽ không bao giờ bị 1 bản cũ trên Gist ghi đè mất.
 
